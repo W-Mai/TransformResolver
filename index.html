@@ -3,6 +3,18 @@
 <head>
     <title>2.5D Transform Resolver</title>
     <style>
+        html {
+            height: 100vh;
+            width: 100vw;
+            background-image: linear-gradient(45deg, #f12711, #f5af19);
+        }
+
+        h1 {
+            color: #fff;
+            text-align: center;
+            font-weight: bolder;
+        }
+
         body {
             display: flex;
             flex-direction: column;
@@ -16,7 +28,7 @@
         }
 
         canvas {
-            border: 1px solid #ccc;
+            border-radius: 16px;
         }
 
         .controls {
@@ -24,6 +36,7 @@
             padding: 20px;
             background: #f0f0f0;
             border-radius: 8px;
+            font-size: 24px;
         }
 
         .codes-area-group {
@@ -63,7 +76,7 @@
     </style>
 </head>
 <body>
-<h2>2.5D Transform Resolver</h2>
+<h1>2.5D Transform Resolver</h1>
 <div class="canvas-container" id="canvasContainer">
     <canvas id="canvas"></canvas>
 </div>
@@ -133,7 +146,7 @@
             const rect_w = this.originalCorners[1][0] - this.originalCorners[0][0];
             const rect_h = this.originalCorners[2][1] - this.originalCorners[1][1];
 
-            this.width = window.innerWidth - 40;
+            this.width = window.innerWidth * 0.9;
             this.height = window.innerHeight / 2;
             this.canvas.width = this.width;
             this.canvas.height = this.height;
@@ -331,7 +344,9 @@
         render() {
             // Clear canvas
             this.ctx.resetTransform();
+            this.ctx.fillStyle = '#fff7';
             this.ctx.clearRect(0, 0, this.width, this.height);
+            this.ctx.fillRect(0, 0, this.width, this.height);
 
             // Draw original rectangle
             this.ctx.strokeStyle = '#114';
