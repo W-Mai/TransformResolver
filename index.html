@@ -26,13 +26,29 @@
             border-radius: 8px;
         }
 
-        .matrix-display {
+        .codes-area-group {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .codes-area {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        .codes-display {
             font-family: monospace;
             white-space: pre;
             background: #fff;
             padding: 10px;
             border-radius: 4px;
             margin: 10px 0;
+            width: 300px;
+            height: 200px;
         }
 
         .handle {
@@ -54,8 +70,21 @@
 <div class="controls">
     <button id="resetBtn">Reset Transform</button>
     <button id="applyRandomBtn">Random Transform</button>
-    <div>Matrix:</div>
-    <div id="matrixDisplay" class="matrix-display"></div>
+
+    <div class="codes-area-group">
+        <div class="codes-area">
+            <div>Matrix:</div>
+            <label for="matrixDisplay"></label>
+            <textarea id="matrixDisplay" class="codes-display"></textarea>
+        </div>
+
+        <div class="codes-area">
+            <div>Vegravis Commands:</div>
+            <label for="vegravisCommands"></label>
+            <textarea id="vegravisCommands" class="codes-display"></textarea>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -65,12 +94,7 @@
             this.ctx = this.canvas.getContext('2d');
             this.container = document.getElementById('canvasContainer');
             this.matrixDisplay = document.getElementById('matrixDisplay');
-
-            // Set canvas size
-            this.width = 400;
-            this.height = 300;
-            this.canvas.width = this.width;
-            this.canvas.height = this.height;
+            this.vegravisCommands = document.getElementById('vegravisCommands');
 
             // Original rectangle corners
             this.originalCorners = [
@@ -80,13 +104,7 @@
                 [0, 100]
             ];
 
-            const rect_w = this.originalCorners[1][0] - this.originalCorners[0][0];
-            const rect_h = this.originalCorners[2][1] - this.originalCorners[1][1];
-
-            this.offset = [
-                (this.width - rect_w) / 2,
-                (this.height - rect_h) / 2
-            ];
+            this.resetCanvasSize();
 
             // Initialize transformed corners
             this.transformedCorners = this.originalCorners.map(corner => [...corner]);
@@ -106,10 +124,23 @@
 
             this.transformedCorners = this.originalCorners.map(corner => [...corner]);
             this.updateTransformMatrix();
-            this.render();
 
             // Initial render
             this.render();
+        }
+
+        resetCanvasSize() {
+            const rect_w = this.originalCorners[1][0] - this.originalCorners[0][0];
+            const rect_h = this.originalCorners[2][1] - this.originalCorners[1][1];
+
+            this.width = window.innerWidth - 40;
+            this.height = window.innerHeight / 2;
+            this.canvas.width = this.width;
+            this.canvas.height = this.height;
+            this.offset = [
+                (this.width - rect_w) / 2,
+                (this.height - rect_h) / 2
+            ];
         }
 
         createHandles() {
@@ -281,7 +312,9 @@
 
         updateMatrixDisplay() {
             const formatNumber = (n) => n.toFixed(3);
-            this.matrixDisplay.textContent = 'push_trans,\n\t' + this.transformMatrix
+            this.matrixDisplay.textContent = this.transformMatrix.map(row => row.map(formatNumber).join('\t')).join('\n');
+
+            this.vegravisCommands.textContent = 'push_trans,\n\t' + this.transformMatrix
                     .map(row => row.map(formatNumber).join(',\t'))
                     .join(',\n\t')
                 + ',\n\n' +
@@ -322,9 +355,17 @@
         }
     }
 
+    let transformDemo = null;
     // Initialize the demo when the page loads
     window.addEventListener('load', () => {
-        new TransformDemo();
+        transformDemo = new TransformDemo();
+    });
+    window.addEventListener('resize', function () {
+        if (transformDemo) {
+            transformDemo.resetCanvasSize();
+            transformDemo.updateHandlePositions();
+            transformDemo.render();
+        }
     });
 </script>
 </body>
