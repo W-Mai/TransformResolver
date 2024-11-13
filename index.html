@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>2.5D Transform Resolver</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+        }
+
+        .canvas-container {
+            position: relative;
+            margin: 20px;
+        }
+
+        canvas {
+            border: 1px solid #ccc;
+        }
+
+        .controls {
+            margin: 20px;
+            padding: 20px;
+            background: #f0f0f0;
+            border-radius: 8px;
+        }
+
+        .matrix-display {
+            font-family: monospace;
+            white-space: pre;
+            background: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .handle {
+            width: 10px;
+            height: 10px;
+            background: red;
+            position: absolute;
+            border-radius: 50%;
+            cursor: move;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body>
+<h2>2.5D Transform Resolver</h2>
+<div class="canvas-container" id="canvasContainer">
+    <canvas id="canvas"></canvas>
+</div>
+<div class="controls">
+    <button id="resetBtn">Reset Transform</button>
+    <button id="applyRandomBtn">Random Transform</button>
+    <div>Matrix:</div>
+    <div id="matrixDisplay" class="matrix-display"></div>
+</div>
+
+<script>
+    class TransformDemo {
+        constructor() {
+            this.canvas = document.getElementById('canvas');
+            this.ctx = this.canvas.getContext('2d');
+            this.container = document.getElementById('canvasContainer');
+            this.matrixDisplay = document.getElementById('matrixDisplay');
+
+            // Set canvas size
+            this.width = 400;
+            this.height = 300;
+            this.canvas.width = this.width;
+            this.canvas.height = this.height;
+
+            // Original rectangle corners
+            this.originalCorners = [
+                [0, 0],
+                [200, 0],
+                [200, 100],
+                [0, 100]
+            ];
+
+            const rect_w = this.originalCorners[1][0] - this.originalCorners[0][0];
+            const rect_h = this.originalCorners[2][1] - this.originalCorners[1][1];
+
+            this.offset = [
+                (this.width - rect_w) / 2,
+                (this.height - rect_h) / 2
+            ];
+
+            // Initialize transformed corners
+            this.transformedCorners = this.originalCorners.map(corner => [...corner]);
+
+            // Create draggable handles
+            this.createHandles();
+
+            // Initialize matrix
+            this.transformMatrix = [
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]
+            ];
+
+            // Bind events
+            this.bindEvents();
+
+            this.transformedCorners = this.originalCorners.map(corner => [...corner]);
+            this.updateTransformMatrix();
+            this.render();
+
+            // Initial render
+            this.render();
+        }
+
+        createHandles() {
+            this.handles = [];
+            for (let i = 0; i < 4; i++) {
+                const handle = document.createElement('div');
+                handle.className = 'handle';
+                handle.dataset.index = i;
+                this.container.appendChild(handle);
+                this.handles.push(handle);
+            }
+            this.updateHandlePositions();
+        }
+
+        updateHandlePositions() {
+            this.handles.forEach((handle, i) => {
+                const [x, y] = this.transformedCorners[i];
+                handle.style.left = `${x + this.offset[0]}px`;
+                handle.style.top = `${y + this.offset[1]}px`;
+            });
+        }
+
+        bindEvents() {
+            this.handles.forEach(handle => {
+                handle.addEventListener('mousedown', (e) => {
+                    const handleIndex = parseInt(handle.dataset.index);
+                    const startX = e.clientX;
+                    const startY = e.clientY;
+                    const startCorner = [...this.transformedCorners[handleIndex]];
+
+                    const moveHandler = (e) => {
+                        const dx = e.clientX - startX;
+                        const dy = e.clientY - startY;
+                        this.transformedCorners[handleIndex] = [
+                            startCorner[0] + dx,
+                            startCorner[1] + dy
+                        ];
+                        this.updateTransformMatrix();
+                        this.render();
+                    };
+
+                    const upHandler = () => {
+                        document.removeEventListener('mousemove', moveHandler);
+                        document.removeEventListener('mouseup', upHandler);
+                    };
+
+                    document.addEventListener('mousemove', moveHandler);
+                    document.addEventListener('mouseup', upHandler);
+                });
+            });
+
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                this.transformedCorners = this.originalCorners.map(corner => [...corner]);
+                this.updateTransformMatrix();
+                this.render();
+            });
+
+            document.getElementById('applyRandomBtn').addEventListener('click', () => {
+                this.applyRandomTransform();
+            });
+        }
+
+        applyRandomTransform() {
+            this.transformedCorners = this.originalCorners.map(corner => {
+                return [
+                    corner[0] + (Math.random() - 0.5) * 100,
+                    corner[1] + (Math.random() - 0.5) * 100
+                ];
+            });
+            this.updateTransformMatrix();
+            this.render();
+        }
+
+        matrixMultiply(a, b) {
+            // 如果 b 是一维数组，将其转换为列向量（二维数组）
+            if (!Array.isArray(b[0])) {
+                b = b.map(x => [x]);
+            }
+
+            const result = [];
+            for (let i = 0; i < a.length; i++) {
+                result[i] = [];
+                for (let j = 0; j < b[0].length; j++) {
+                    let sum = 0;
+                    for (let k = 0; k < a[0].length; k++) {
+                        sum += a[i][k] * b[k][j];
+                    }
+                    result[i][j] = sum;
+                }
+            }
+            return result;
+        }
+
+        transpose(matrix) {
+            return matrix[0].map((_, colIndex) => matrix.map(row => row[colIndex]));
+        }
+
+        gaussianElimination(A, b) {
+            const n = A.length;
+            const augmented = A.map((row, i) => [...row, b[i]]);
+
+            // Forward elimination
+            for (let i = 0; i < n; i++) {
+                let maxRow = i;
+                for (let j = i + 1; j < n; j++) {
+                    if (Math.abs(augmented[j][i]) > Math.abs(augmented[maxRow][i])) {
+                        maxRow = j;
+                    }
+                }
+
+                [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
+
+                for (let j = i + 1; j < n; j++) {
+                    const factor = augmented[j][i] / augmented[i][i];
+                    for (let k = i; k <= n; k++) {
+                        augmented[j][k] -= factor * augmented[i][k];
+                    }
+                }
+            }
+
+            // Back substitution
+            const x = new Array(n).fill(0);
+            for (let i = n - 1; i >= 0; i--) {
+                let sum = 0;
+                for (let j = i + 1; j < n; j++) {
+                    sum += augmented[i][j] * x[j];
+                }
+                x[i] = (augmented[i][n] - sum) / augmented[i][i];
+            }
+
+            return x;
+        }
+
+        solve2DTransformMatrix(originalCorners, transformedCorners) {
+            const A = [];
+            const b = [];
+
+            for (let i = 0; i < 4; i++) {
+                const [x, y] = originalCorners[i];
+                const [x_, y_] = transformedCorners[i];
+
+                A.push([x, y, 1, 0, 0, 0, -x * x_, -y * x_]);
+                A.push([0, 0, 0, x, y, 1, -x * y_, -y * y_]);
+
+                b.push(x_);
+                b.push(y_);
+            }
+
+            const At = this.transpose(A);
+            const AtA = this.matrixMultiply(At, A);
+            const Atb = this.matrixMultiply(At, [[...b]][0]).map(row => row[0]);
+
+            const solution = this.gaussianElimination(AtA, Atb);
+            return [
+                [solution[0], solution[1], solution[2]],
+                [solution[3], solution[4], solution[5]],
+                [solution[6], solution[7], 1]
+            ];
+        }
+
+        updateTransformMatrix() {
+            this.transformMatrix = this.solve2DTransformMatrix(
+                this.originalCorners,
+                this.transformedCorners
+            );
+            this.updateHandlePositions();
+            this.updateMatrixDisplay();
+        }
+
+        updateMatrixDisplay() {
+            const formatNumber = (n) => n.toFixed(3);
+            this.matrixDisplay.textContent = 'push_trans,\n\t' + this.transformMatrix
+                    .map(row => row.map(formatNumber).join(',\t'))
+                    .join(',\n\t')
+                + ',\n\n' +
+                [
+                    `move, ${this.originalCorners[0]}`,
+                    `line, ${this.originalCorners[1]}`,
+                    `line, ${this.originalCorners[2]}`,
+                    `line, ${this.originalCorners[3]}`,
+                    `line, ${this.originalCorners[0]}`,
+                    'end'
+                ].join(',\n') + ', \n\n';
+        }
+
+        render() {
+            // Clear canvas
+            this.ctx.resetTransform();
+            this.ctx.clearRect(0, 0, this.width, this.height);
+
+            // Draw original rectangle
+            this.ctx.strokeStyle = '#114';
+            this.ctx.beginPath();
+
+            this.ctx.translate(...this.offset);
+            this.ctx.moveTo(...this.originalCorners[0]);
+            this.originalCorners.slice(1).concat([this.originalCorners[0]]).forEach(corner => {
+                this.ctx.lineTo(...corner);
+            });
+            this.ctx.stroke();
+
+            // Draw transformed rectangle
+            this.ctx.strokeStyle = '#514';
+            this.ctx.beginPath();
+            this.ctx.moveTo(...this.transformedCorners[0]);
+            this.transformedCorners.slice(1).concat([this.transformedCorners[0]]).forEach(corner => {
+                this.ctx.lineTo(...corner);
+            });
+            this.ctx.stroke();
+        }
+    }
+
+    // Initialize the demo when the page loads
+    window.addEventListener('load', () => {
+        new TransformDemo();
+    });
+</script>
+</body>
+</html>
