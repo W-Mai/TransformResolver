@@ -47,7 +47,7 @@
             display: flex;
             flex-direction: row;
             justify-content: space-between;
-            align-items: center;
+            align-items: stretch;
         }
 
         .codes-area {
@@ -59,6 +59,7 @@
 
         .codes-display {
             font-family: monospace;
+            font-size: 14px;
             white-space: pre;
             background: #fff;
             padding: 10px;
@@ -91,14 +92,15 @@
     <div class="codes-area-group">
         <div class="codes-area">
             <div>Matrix:</div>
-            <label for="matrixDisplay"></label>
-            <textarea id="matrixDisplay" class="codes-display"></textarea>
+            <div id="matrixDisplay" class="codes-display"></div>
+            <button id="copyMatrixBtn">Copy Matrix</button>
         </div>
 
         <div class="codes-area">
             <a href="https://w-mai.github.io/vegravis" target="_blank">Vegravis</a> Commands:
-            <label for="vegravisCommands"></label>
-            <textarea id="vegravisCommands" class="codes-display"></textarea>
+            <div id="vegravisCommands" class="codes-display"></div>
+            <button id="copyVegravisBtn">Copy Vegravis Commands</button>
+            <button id="openVegravisBtn">Open in Vegravis</button>
         </div>
     </div>
 
@@ -217,6 +219,40 @@
 
             document.getElementById('applyRandomBtn').addEventListener('click', () => {
                 this.applyRandomTransform();
+            });
+
+            document.getElementById('copyMatrixBtn').addEventListener('click', () => {
+                navigator.clipboard.writeText(this.matrixDisplay.textContent);
+            });
+
+            document.getElementById('copyVegravisBtn').addEventListener('click', () => {
+                navigator.clipboard.writeText(this.vegravisCommands.textContent);
+            });
+
+            document.getElementById('openVegravisBtn').addEventListener('click', () => {
+                function toBase64WithoutPadding(binaryData) {
+                    let base64String = btoa(String.fromCharCode.apply(null, binaryData));
+                    while (base64String.endsWith('=')) {
+                        base64String = base64String.substring(0, base64String.length - 1);
+                    }
+                    return base64String;
+                }
+
+                const encoder = new TextEncoder();
+                const binaryData = encoder.encode(this.vegravisCommands.textContent);
+                const byteLength = binaryData.length;
+                // if byteLength can be stored in 1 byte, use 1 byte to store it, otherwise use 2 bytes, and so on. until 4 bytes.
+                const byteLengthLength = Math.ceil(Math.log2(byteLength) / 8);
+                const header = (new Uint8Array(byteLengthLength));
+                for (let i = 0; i < byteLengthLength; i++) {
+                    header[i] = (byteLength >> (i * 8)) & 0xff;
+                }
+                const data = new Uint8Array(header.length + binaryData.length + 1);
+                data.set(header, 0);
+                data.set(binaryData, byteLengthLength);
+                data[data.length - 1] = 0;
+                const url = 'https://w-mai.github.io/vegravis/?' + encodeURIComponent(toBase64WithoutPadding(data));
+                window.open(url, '_blank');
             });
         }
 
