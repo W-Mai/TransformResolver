@@ -364,12 +364,12 @@
         }
 
         updateMatrixDisplay() {
-            const formatNumber = (n) => n.toFixed(3);
+            const formatNumber = (n) => n.toFixed(5); // wengzhe like this.
             this.matrixDisplay.textContent = this.transformMatrix.map(row => row.map(formatNumber).join('\t')).join('\n');
 
-            this.vegravisCommands.textContent = 'push_trans,\n\t' + this.transformMatrix
-                    .map(row => row.map(formatNumber).join(',\t'))
-                    .join(',\n\t')
+            this.vegravisCommands.textContent = 'push_trans,\n    ' + this.transformMatrix
+                    .map(row => row.map(formatNumber).join(', '))
+                    .join(',\n    ')
                 + ',\n\n' +
                 [
                     `move, ${this.originalCorners[0]}`,
